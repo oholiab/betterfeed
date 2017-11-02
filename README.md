@@ -17,8 +17,14 @@ The project was born out of frustration with web browsers, ads and content
 producers and curators attempting to dictate the way in which their content is
 consumed
 
+## Installation
+
+You'll first need to install [rss-utils](https://github.com/oholiab/rss-utils)
+and then betterfeed by cloning the repo, `cd`ing into it and doing
+
+    lein install
+
 ## Usage
-### As it is currently
 
 This is pretty basic at the moment.
 
