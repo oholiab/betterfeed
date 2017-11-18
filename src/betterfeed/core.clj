@@ -8,12 +8,45 @@
             [net.cgrand.enlive-html :as enl]
             [rss-utils.core :as rss]))
 
+;; ----- BEGIN TERRIBLE HACK ----- ;;
+; Stops data.xml 0.2.0-alpha3 from throwing an exception when xmlns prefix is
+; correctly defined - this is a bug which has a fix out, but not in a release
+; version
+
+(in-ns 'clojure.data.xml.pu-map)
+(defn assoc! [{:as put :keys [p->u u->ps]} prefix uri]
+  ; Monkey patching the following bit out
+  #_(when (or (core/get #{"xml" "xmlns"} prefix)
+            (core/get #{name/xml-uri name/xmlns-uri} uri))
+    (throw (ex-info "Mapping for xml: and xmlns: prefixes are fixed by the standard"
+                    {:attempted-mapping {:prefix prefix
+                                         :uri uri}})))
+  (let [prev-uri (core/get p->u prefix)]
+    (core/assoc! put
+                 :p->u (if (str/blank? uri)
+                         (core/dissoc! p->u prefix)
+                         (core/assoc! p->u prefix uri))
+                 :u->ps (if (str/blank? uri)
+                          (dissoc-uri! u->ps prev-uri prefix)
+                          (cond
+                            (= uri prev-uri) u->ps
+                            (not prev-uri) (assoc-uri! u->ps uri prefix)
+                            :else (-> u->ps
+                                      (dissoc-uri! prev-uri prefix)
+                                      (assoc-uri! uri prefix)))))))
+
+;; ----- END TERRIBLE HACK ----- ;;
+(in-ns 'betterfeed.core)
+
 (def user-agent "Mozilla/5.0 (Macintosh; Intel Mac OS X 10_12_4) AppleWebKit/537.36 (KHTML, like Gecko) Chrome/57.0.2987.133 Safari/537.36")
 (def default-headers {"User-Agent" user-agent})
 (def chromepath "/Applications/Google Chrome Canary.app/Contents/MacOS/Google Chrome Canary")
 (def chromeargs ["--headless" "--disable-gpu" "--dump-dom"])
 
 (def will-3xx (ref '()))
+
+(xml/alias-uri 'content "http://purl.org/rss/1.0/modules/content/")
+(def prefixes {:xmlns/content "http://purl.org/rss/1.0/modules/content/"})
 
 (defn get-host
   "Get the host portion of a URL"
@@ -94,7 +127,7 @@
 
 (defn insert-tag
   [item field newval]
-  (zip/insert-child item (xml/element field {} newval)))
+  (zip/insert-child item (xml/element field prefixes newval)))
 
 (defn update-or-insert-item
   [item field newval]
@@ -156,18 +189,15 @@
 
 (defn update-body-from-link-contents
   "Updates the body field of `item` with the scrape of the link field"
-  [item]
-  (let [url  (get-link-from-item item)
-        field :description]
-    (update-or-insert-item item field (xml/cdata (emit-body-content url)))))
+  ([item field]
+   (let [url (get-link-from-item item)]
+     (update-or-insert-item item field (xml/cdata (emit-body-content url)))))
+  ([item]
+   (update-body-from-link-contents item ::content/encoded)))
 
 (defn repopulate-feed
   [feed]
   (rss/apply-to-items feed update-body-from-link-contents))
-
-;;; ---------------------------------------------- ;;;
-;;; EXTRA SHIT THAT'S NOT ACTUALLY USED BELOW HERE ;;;
-;;; ---------------------------------------------- ;;;
 
 ; TO UTILS
 (def c-repopulate-feed (memoize #(repopulate-feed (rss/parse-feed %))))
@@ -176,6 +206,11 @@
   [url dest]
   (with-open [f (clojure.java.io/writer dest)]
     (xml/emit (repopulate-feed (rss/parse-feed url)) f)))
+
+;;; ---------------------------------------------- ;;;
+;;; EXTRA SHIT THAT'S NOT ACTUALLY USED BELOW HERE ;;;
+;;; ---------------------------------------------- ;;;
+
 
 (defn get-read-more-paragraph
   [description]
