@@ -1,5 +1,7 @@
 # betterfeed
 > Poorly formatted feed? That's a scrapin'.
+[![Build
+Status](https://travis-ci.org/oholiab/betterfeed.svg?branch=master)](https://travis-ci.org/oholiab/betterfeed)
 ## What is it?
 
 A server/library for making RSS feeds work for you.
