@@ -62,7 +62,7 @@
       (-> response
           :headers
           :Location
-          clojure.string/trim-newline)
+          str)
       url)))
 
 
@@ -118,9 +118,10 @@
       get-real-url))
 
 ; FIXME: move to rss-utils
+; BEGIN MOVE TO RSS UTILS
 (defn update-item
   [item field newval]
-  (zip/up (zip/edit (dzx/xml1-> item field) #(assoc-in % [:content] newval))))
+  (zip/up (zip/edit (dzx/xml1-> item field) #(assoc-in % [:content] [newval]))))
 
 (defn has-tag?
   [tag item]
@@ -154,6 +155,8 @@
 (defn get-all-links
   [feed]
   (get-all-tag :link feed))
+
+; END MOVE TO RSS-UTILS
 
 (defn get-html-snippet
   [url]
