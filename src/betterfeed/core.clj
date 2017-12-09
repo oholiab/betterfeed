@@ -61,7 +61,8 @@
     (if (<= 300 (:status response) 400)
       (-> response
           :headers
-          :Location)
+          :Location
+          clojure.string/trim-newline)
       url)))
 
 
